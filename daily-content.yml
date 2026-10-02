@@ -1,0 +1,42 @@
+name: Daily Content Engine
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+      timezone: 'America/Sao_Paulo'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-schedule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate scripts and schedule
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          METRICOOL_TOKEN: ${{ secrets.METRICOOL_TOKEN }}
+          METRICOOL_USER_ID: ${{ secrets.METRICOOL_USER_ID }}
+          METRICOOL_BLOG_ID: ${{ secrets.METRICOOL_BLOG_ID }}
+          METRICOOL_CREATOR_EMAIL: ${{ secrets.METRICOOL_CREATOR_EMAIL }}
+          METRICOOL_AUTO_PUBLISH: ${{ secrets.METRICOOL_AUTO_PUBLISH }}
+          MEDIA_URL_TEMPLATE: ${{ secrets.MEDIA_URL_TEMPLATE }}
+          BATCH_SIZE: '5'
+        run: python scripts/daily.py
+      - name: Commit generated files
+        run: |
+          git config user.name 'Caçador de Ofertas Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/processados.txt output/roteiros || true
+          git diff --cached --quiet || git commit -m 'chore: gerar lote diário de roteiros'
+          git push || true
